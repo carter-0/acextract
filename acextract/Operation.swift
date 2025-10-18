@@ -24,6 +24,11 @@
 //  SOFTWARE.
 
 import Foundation
+#if os(macOS)
+import CoreServices
+#else
+import MobileCoreServices
+#endif
 
 // MARK: - Protocols
 protocol Operation {
@@ -52,6 +57,42 @@ enum ExtractOperationError: Error {
     case renditionMissingData
     case cannotSaveImage
     case cannotCreatePDFDocument
+    case cannotSaveData
+    case unsupportedFormat
+}
+
+enum ImageFormat {
+    case png
+    case pdf
+    case heic
+    case gif
+    case tiff
+    case jpeg
+    case bmp
+
+    var fileExtension: String {
+        switch self {
+        case .png: return "png"
+        case .pdf: return "pdf"
+        case .heic: return "heic"
+        case .gif: return "gif"
+        case .tiff: return "tiff"
+        case .jpeg: return "jpeg"
+        case .bmp: return "bmp"
+        }
+    }
+
+    var utType: CFString {
+        switch self {
+        case .png: return kUTTypePNG
+        case .pdf: return kUTTypePDF
+        case .heic: return "public.heic" as CFString
+        case .gif: return kUTTypeGIF
+        case .tiff: return kUTTypeTIFF
+        case .jpeg: return kUTTypeJPEG
+        case .bmp: return kUTTypeBMP
+        }
+    }
 }
 
 struct ExtractOperation: Operation {
@@ -112,28 +153,77 @@ struct ExtractOperation: Operation {
 
 private extension CUINamedImage {
     /**
-     Extract given image as PNG or PDF file.
+     Detect the image format from the rendition's UTI type.
+
+     - returns: The detected ImageFormat, or nil if format is not supported.
+     */
+    func acDetectFormat() -> ImageFormat? {
+        // Check for PDF first
+        if self._rendition().pdfDocument() != nil {
+            return .pdf
+        }
+
+        if let utiType = self._rendition().utiType() {
+            let utiString = utiType.lowercased()
+
+            if utiString.contains("heic") || utiString.contains("heif") {
+                return .heic
+            }
+            if utiString.contains("gif") {
+                return .gif
+            }
+            if utiString.contains("tiff") || utiString.contains("tif") {
+                return .tiff
+            }
+            if utiString.contains("jpeg") || utiString.contains("jpg") {
+                return .jpeg
+            }
+            if utiString.contains("bmp") {
+                return .bmp
+            }
+        }
+
+        if self._rendition().unslicedImage() != nil {
+            return .png
+        }
+
+        return nil
+    }
+
+    /**
+     Extract given image in its appropriate format.
 
      - parameter filePath: Path where file should be saved.
 
-     - throws: Thorws if there is no image data.
+     - throws: Throws if there is no image data or format is not supported.
      */
     func acSaveAtPath(filePath: String) throws {
-        if self._rendition().pdfDocument() != nil {
-            try self.acSavePDF(filePath: filePath)
-        } else if self._rendition().unslicedImage() != nil {
-            try self.acSaveImage(filePath: filePath)
-        } else {
+        guard let format = acDetectFormat() else {
             throw ExtractOperationError.renditionMissingData
+        }
+
+        switch format {
+        case .pdf:
+            try self.acSavePDF(filePath: filePath)
+        case .png, .heic, .gif, .tiff, .jpeg, .bmp:
+            try self.acSaveImage(filePath: filePath, format: format)
         }
     }
 
-    func acSaveImage(filePath: String) throws {
+    /**
+     Save image in the specified format.
+
+     - parameter filePath: Path where file should be saved.
+     - parameter format: The image format to use.
+
+     - throws: Throws if cannot save image.
+     */
+    func acSaveImage(filePath: String, format: ImageFormat) throws {
         let filePathURL = NSURL(fileURLWithPath: filePath)
         guard let cgImage = self._rendition().unslicedImage()?.takeUnretainedValue() else {
             throw ExtractOperationError.cannotSaveImage
         }
-        guard let cgDestination = CGImageDestinationCreateWithURL(filePathURL, kUTTypePNG, 1, nil) else {
+        guard let cgDestination = CGImageDestinationCreateWithURL(filePathURL, format.utType, 1, nil) else {
             throw ExtractOperationError.cannotSaveImage
         }
 

@@ -372,9 +372,30 @@ extension CUINamedImage {
     }
 
     fileprivate var acFileExtension: String {
-        if acIsPDF {
+        if self._rendition().pdfDocument() != nil {
             return "pdf"
         }
+
+        if let utiType = self._rendition().utiType() {
+            let utiString = utiType.lowercased()
+
+            if utiString.contains("heic") || utiString.contains("heif") {
+                return "heic"
+            }
+            if utiString.contains("gif") {
+                return "gif"
+            }
+            if utiString.contains("tiff") || utiString.contains("tif") {
+                return "tiff"
+            }
+            if utiString.contains("jpeg") || utiString.contains("jpg") {
+                return "jpeg"
+            }
+            if utiString.contains("bmp") {
+                return "bmp"
+            }
+        }
+
         return "png"
     }
 

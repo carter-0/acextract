@@ -18,8 +18,13 @@ Support Mac, iOS and AppleWatch assets. Can extract PNG and PDF files.
 | Slicing              | ✔     |
 | Memory class         | ✔     |
 | Graphics class       | ✔     |
+| PDF                  | ✔ (untested)      |
+| HEIC                  | ✔ (untested)      |
+| GIF                  | ✔ (untested)      |
+| TIFF                  | ✔ (untested)      |
+| JPEG                  | ✔ (untested)      |
+| BMP                  | ✔ (untested)      |
 | Data                 | ✘      |
-| PDF                  | ✘      |
 | SpriteKit Atlas      | ✘      |
 | AppleTV image stack  | ✘      |
 | iMessage stickers    | ✘      |
